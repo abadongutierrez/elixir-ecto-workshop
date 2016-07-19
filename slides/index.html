@@ -1,0 +1,258 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+        <title>reveal.js</title>
+
+        <link rel="stylesheet" href="css/reveal.css">
+        <link rel="stylesheet" href="css/theme/black.css">
+
+        <!-- Theme used for syntax highlighting of code -->
+        <link rel="stylesheet" href="lib/css/zenburn.css">
+
+        <!-- Printing and PDF exports -->
+        <script>
+            var link = document.createElement( 'link' );
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+            document.getElementsByTagName( 'head' )[0].appendChild( link );
+        </script>
+    </head>
+    <body>
+        <div class="reveal">
+            <div class="slides">
+                <section>
+                    <h1>Ecto</h1>
+                    <h3>A database wrapper and language integrated query for Elixir</h3>
+                    <p>
+                        <small>Created by Rafael Guti&eacute;rrez / <a href="http://twitter.com/abaddon_gtz">@abaddon_gtz</a></small>
+                    </p>
+                </section>
+
+                <section>
+                    <h2>Ecto 4 main components:</h2>
+                    <ul>
+                        <li>Ecto.Repo</li>
+                        <li>Ecto.Schema</li>
+                        <li>Ecto.Changeset</li>
+                        <li>Ecto.Query</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2>Ecto.Repo</h2>
+                </section>
+
+                <section>
+                    <h2>Ecto.Repo</h2>
+                    <p>Repositories are wrappers around the data store. Via the repository, we can create, update, destroy and query existing entries. A repository needs an <b>adapter</b> and credentials to communicate to the database</p>
+                </section>
+
+                <section>
+                    <h3>Create new App</h3>
+                    <pre><code>
+  mix new wsp_app --sup
+                    </code></pre>
+                    <p>--sup option is given to generate an OTP application skeleton including a supervision tree.</p>
+                    <p>The Ecto.Repo runs under a supervision tree.</p>
+                </section>
+
+                <section>
+                    <h3>Add Ecto and Postgres dependencies</h3>
+                    <p>Modify function <code class="inline">deps/0</code> in file <code class="inline">PROJECT/mix.exs</code></p>
+                    <pre><code>
+  defp deps do
+    [{:postgrex, ">= 0.0.0"},
+     {:ecto, "~> 2.0.0"}]
+  end
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h3>Specify Ecto and Postgres apps</h3>
+                    <p>Modify function <code class="inline">application/0</code> in file <code class="inline">PROJECT/mix.exs</code></p>
+                    <pre><code>
+  def application do
+    [applications: [:logger, :ecto, :postgrex],
+     mod: {WspApp, []}]
+  end
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h3>Create the Ecto Repository</h3>
+                    <p>Create new file <code class="inline">PROJECT/lib/wsp_app/repo.ex</code></p>
+                    <pre><code>
+  defmodule WspApp.Repo do
+    use Ecto.Repo, otp_app: :wsp_app
+  end
+                    </code></pre>
+                    <p>This location is a convetion. <code class="inline">mix ecto</code> command will look for a Repo defined in <code class="inline">AppName.Repo</code> module.</p>
+                </section>
+
+                <section>
+                    <h3>Add Ecto Repo to the Supervision Tree</h3>
+                    <p>Modify function <code class="inline">start/2</code> in file <code class="inline">PROJECT/lib/wsp_app.ex</code></p>
+                    <pre><code>
+  def start(_type, _args) do
+    import Supervisor.Spec, warn: false
+
+    children = [
+      supervisor(WspApp.Repo, [])
+    ]
+
+    opts = [strategy: :one_for_one,
+            name: WspApp.Supervisor]
+    Supervisor.start_link(children, opts)
+  end
+                    </code></pre>
+                    <p>Ecto.Repo is itself a supervising OTP App</p>
+                </section>
+
+                <section>
+                    <h3>Configure Adapter</h3>
+                    <p>Modify file <code class="inline">PROJECT/config/config.exs</code></p>
+                    <pre><code>
+  config :wsp_app, WspApp.Repo,
+    adapter: Ecto.Adapters.Postgres,
+    database: "ws_proposal_app_dev",
+    username: "postgres",
+    password: "",
+    hostname: "localhost"
+  
+  # for Ecto 2
+  config :wsp_app, ecto_repos: [WspApp.Repo]
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h3>Test configuration</h3>
+                    <pre><code>
+  mix deps.get
+
+  mix ecto.create
+
+  iex -S mix
+
+  iex(1)> :observer.start
+  :ok
+                    </code></pre>
+                    <p>What will happend if we change the pool size?</p>
+                    <pre><code>pool_size: 5</code></pre>
+                </section>
+
+                <section>
+                    <h2>Ecto.Schema</h2>
+                </section>
+
+                <section>
+                    <h2>Ecto.Schema</h2>
+                    <p>Maps any data source into Elixir struct. Map tables into Elixir data.</p>
+                </section>
+
+                <section>
+                    <h2>Create database</h2>
+                    <pre><code>
+  mix ecto.create
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>Create a table</h2>
+                    <pre><code>
+  mix ecto.gen.migration create_workshop_proposals_table
+                    </code></pre>
+                    <p>This will create a new file under <code class="inline">PROJECT/priv/repo/migrations/</code></p>
+                    <pre><code>
+  defmodule WspApp.Repo.Migrations.CreateWorkshopProposalsTable do
+    use Ecto.Migration
+
+    def change do
+
+    end
+  end
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>Create a table</h2>
+                    <p>Modify change/0 to have the following:</p>
+                    <pre><code>
+    def change do
+      create table(:workshop_proposals) do
+        add :title, :text
+        add :description, :text
+        add :instructor_email, :text
+        add :tentative_date, :date
+
+        timestamps
+      end
+    end
+                    </code></pre>
+                    <p>And run:</p>
+                    <pre><code>
+  mix ecto.migrate 
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>WorkshopProposal Model</h2>
+                    <p>Create file</p>
+                    <p><code class="inline">PROJECT/lib/wsp_app/workshop_proposal.ex</code></p>
+                    <pre><code>
+  defmodule WspApp.WorkshopProposal do
+    use Ecto.Schema
+  
+    schema "workshop_proposals" do
+      field :title, :string
+      field :description, :string
+      field :instructor_email, :string
+      field :tentative_date, Ecto.Date
+  
+      timestamps
+    end
+  end
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>Test Model</h2>
+                    <pre><code>
+  iex -S mix
+
+  iex(1)> %WspApp.WorkshopProposal{}
+
+  iex(1)> %WspApp.WorkshopProposal{title: "Spring Batch 101"}
+
+  iex(1)> import Ecto.Query
+
+  iex(1)> WspApp.Repo.all(
+  ...(1)> from(wp in WspApp.WorkshopProposal, [select: wp.title]))
+
+                    </code></pre>
+                </section>
+            </div>
+        </div>
+
+        <script src="lib/js/head.min.js"></script>
+        <script src="js/reveal.js"></script>
+
+        <script>
+            // More info https://github.com/hakimel/reveal.js#configuration
+            Reveal.initialize({
+                history: true,
+
+                // More info https://github.com/hakimel/reveal.js#dependencies
+                dependencies: [
+                    { src: 'plugin/markdown/marked.js' },
+                    { src: 'plugin/markdown/markdown.js' },
+                    { src: 'plugin/notes/notes.js', async: true },
+                    { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+                ]
+            });
+        </script>
+    </body>
+</html>
